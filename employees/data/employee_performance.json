@@ -1,0 +1,55 @@
+[
+  {
+    "employee_id": 1,
+    "manager_id": 1,
+    "period": "2026-Q2",
+    "rating": 4.6,
+    "summary": "Strong leadership and delivery execution across the quarter.",
+    "strengths": [
+      "Team coaching",
+      "Cross-team planning",
+      "Incident response"
+    ],
+    "improvements": [
+      "Delegate roadmap reviews earlier"
+    ],
+    "goals": [
+      "Mentor two senior ICs for manager readiness"
+    ]
+  },
+  {
+    "employee_id": 2,
+    "manager_id": 1,
+    "period": "2026-Q2",
+    "rating": 4.3,
+    "summary": "Consistently high-quality delivery on backend services.",
+    "strengths": [
+      "Code quality",
+      "Ownership",
+      "System design"
+    ],
+    "improvements": [
+      "Improve sprint estimation accuracy"
+    ],
+    "goals": [
+      "Lead architecture review for next release"
+    ]
+  },
+  {
+    "employee_id": 6,
+    "manager_id": 2,
+    "period": "2026-Q2",
+    "rating": 4.0,
+    "summary": "Reliable operations support with good stakeholder communication.",
+    "strengths": [
+      "Process discipline",
+      "Documentation"
+    ],
+    "improvements": [
+      "Increase automation for recurring reports"
+    ],
+    "goals": [
+      "Automate monthly operations KPI dashboard"
+    ]
+  }
+]

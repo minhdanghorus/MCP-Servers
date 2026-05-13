@@ -56,3 +56,14 @@ class Employee(EmployeeBase):
 class EmployeeCreate(EmployeeBase):
     """Model used for validating data when creating or updating employees."""
 
+
+class EmployeePerformanceRecord(BaseModel):
+    employee_id: int
+    manager_id: int
+    period: str
+    rating: float
+    summary: str
+    strengths: list[str]
+    improvements: list[str]
+    goals: list[str]
+

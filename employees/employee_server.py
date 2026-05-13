@@ -1,20 +1,43 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import json
+from pathlib import Path
 from typing import Any, Optional, TypeVar
 
 from fastmcp import FastMCP
+from pydantic import TypeAdapter
 
-from employees import services
-from employees.exceptions import EmployeeDatabaseError
+from . import services
+from .exceptions import EmployeeDatabaseError
+from .models import EmployeePerformanceRecord
 
 mcp = FastMCP("employee-server")
+_PERFORMANCE_FILE = Path(__file__).resolve().parent / "data" / "employee_performance.json"
+_PERFORMANCE_ADAPTER = TypeAdapter(list[EmployeePerformanceRecord])
 
 _T = TypeVar("_T")
 
 
 def _serialize_employee(employee: Any) -> dict[str, Any]:
     return employee.model_dump(mode="json")
+
+
+def _load_employee_performance() -> list[dict[str, Any]]:
+    if not _PERFORMANCE_FILE.exists():
+        raise FileNotFoundError(
+            f"Employee performance file not found: {_PERFORMANCE_FILE}"
+        )
+
+    try:
+        raw = json.loads(_PERFORMANCE_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"Employee performance JSON is invalid: {_PERFORMANCE_FILE}"
+        ) from exc
+
+    records = _PERFORMANCE_ADAPTER.validate_python(raw)
+    return [record.model_dump(mode="json") for record in records]
 
 
 def _with_init_retry(action: Callable[[], _T]) -> _T:
@@ -25,6 +48,28 @@ def _with_init_retry(action: Callable[[], _T]) -> _T:
             raise
         services.initialize_employees_schema()
         return action()
+
+
+@mcp.resource("employees://performance")
+def employee_performance_resource() -> list[dict[str, Any]]:
+    """Return all employee performance evaluations from JSON."""
+    return _load_employee_performance()
+
+
+@mcp.resource("employees://performance/{employee_id}")
+def employee_performance_by_employee_resource(employee_id: str) -> list[dict[str, Any]]:
+    """Return employee performance evaluations filtered by employee_id."""
+    try:
+        parsed_employee_id = int(employee_id)
+    except ValueError as exc:
+        raise ValueError("employee_id must be an integer.") from exc
+
+    records = _load_employee_performance()
+    return [
+        record
+        for record in records
+        if int(record.get("employee_id", -1)) == parsed_employee_id
+    ]
 
 
 @mcp.tool()
