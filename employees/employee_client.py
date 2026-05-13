@@ -2,6 +2,7 @@ import asyncio
 import os
 from pathlib import Path
 from agents import Agent, OpenAIChatCompletionsModel, Runner, set_default_openai_client, set_tracing_disabled
+from agents.model_settings import ModelSettings
 
 from agents.mcp import MCPServerStdio
 from dotenv import load_dotenv
@@ -47,10 +48,19 @@ async def main() -> None:
     For HR records (name, email, role, salary, department): use the employee tools
     (e.g. list_employees, get_employee).
 
+    When the user asks to create a new employee:
+    - Call create_employee once when you have name, email, salary, and role.
+    - If the user did not give employment status, use status="active".
+    - If they give a department by name (e.g. Engineering), pass department_name
+      with that string (do not guess department_id from unrelated employees).
+    - Only call list_departments if you truly need ids; department_name is enough.
+
     For performance reviews, ratings, strengths, improvements, or goals: you MUST
     use the performance tools list_employee_performance or get_employee_performance
     (optionally after finding employee_id). Do not claim performance data is
     unavailable if those tools exist and return data.
+
+    Prefer at most one or two tool calls for create requests; avoid exploratory loops.
     """
     async with MCPServerStdio(
         params=params, client_session_timeout_seconds=30
@@ -59,7 +69,8 @@ async def main() -> None:
             name="Employee Assistant",
             instructions=instruction,
             model=agent_model,
-            mcp_servers=[server]
+            mcp_servers=[server],
+            model_settings=ModelSettings(temperature=0),
         )
 
         await server.list_tools()
@@ -80,10 +91,14 @@ async def main() -> None:
         # request = "List all employees"
         # request = "Give me the email of 'Jordan Kim'"
         # request = "who are you?"
-        request = "give me the performance of 'Jordan Kim'"
+        # request = "give me the performance of 'Jordan Kim'"
+        # request = "Create a new employee with the following details: name: Dang Nguyen, email: dang.nguyen@example.com, role: Senior Software Engineer, salary: 20000, department: Engineering"
+        request = "Give me the information of 'Dang Nguyen'"
 
         result = await Runner.run(
-            agent, request
+            agent,
+            request,
+            max_turns=int(os.getenv("EMPLOYEE_AGENT_MAX_TURNS", "6")),
         )
 
 

@@ -16,6 +16,7 @@ from .services import (
     get_employee,
     get_employee_by_email,
     initialize_employees_schema,
+    list_departments,
     list_employees,
     list_employees_by_department,
     list_employees_by_manager,
@@ -40,5 +41,6 @@ __all__ = [
     "list_employees_by_department",
     "list_employees_by_manager",
     "find_employees_by_role",
+    "list_departments",
 ]
 

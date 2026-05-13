@@ -340,6 +340,21 @@ def _handle_integrity_error(action: str, error: sqlite3.IntegrityError) -> None:
     ) from error
 
 
+def list_departments() -> list[dict[str, Any]]:
+    """Return all departments (id and name), sorted by name."""
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, name FROM departments ORDER BY name COLLATE NOCASE"
+            )
+            rows = cursor.fetchall()
+    except sqlite3.Error as exc:
+        raise EmployeeDatabaseError("Database error while listing departments.") from exc
+
+    return [{"id": int(r["id"]), "name": r["name"]} for r in rows]
+
+
 def create_employee(
     *,
     name: str,
@@ -347,25 +362,17 @@ def create_employee(
     status: str,
     salary: float,
     department_id: Optional[int] = None,
+    department_name: Optional[str] = None,
     manager_id: Optional[int] = None,
     phone: Optional[str] = None,
     role: Optional[str] = None,
 ) -> Employee:
-    """Create a new employee record."""
-    try:
-        employee_in = EmployeeCreate(
-            name=name,
-            email=email,
-            status=status,
-            salary=salary,
-            department_id=department_id,
-            manager_id=manager_id,
-            phone=phone,
-            role=role,
-        )
-    except ValidationError as exc:
-        raise InvalidEmployeeDataError("Invalid employee data.") from exc
+    """Create a new employee record.
 
+    If ``department_id`` is set, it is used as-is. Otherwise, if ``department_name``
+    is a non-empty string, the department row is looked up or created and that id
+    is used. If neither is set, ``department_id`` is stored as NULL.
+    """
     now = _now_iso()
     sql = """
         INSERT INTO employees (
@@ -375,26 +382,51 @@ def create_employee(
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
-    params: tuple[Any, ...] = (
-        employee_in.name,
-        employee_in.email,
-        employee_in.status,
-        employee_in.salary,
-        employee_in.department_id,
-        employee_in.manager_id,
-        employee_in.phone,
-        employee_in.role,
-        now,
-        now,
-    )
 
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
+            if department_id is not None:
+                resolved_department_id: Optional[int] = department_id
+            elif department_name is not None and department_name.strip():
+                resolved_department_id = _get_or_create_department(
+                    cursor, name=department_name.strip()
+                )
+            else:
+                resolved_department_id = None
+
+            try:
+                employee_in = EmployeeCreate(
+                    name=name,
+                    email=email,
+                    status=status,
+                    salary=salary,
+                    department_id=resolved_department_id,
+                    manager_id=manager_id,
+                    phone=phone,
+                    role=role,
+                )
+            except ValidationError as exc:
+                raise InvalidEmployeeDataError("Invalid employee data.") from exc
+
+            params: tuple[Any, ...] = (
+                employee_in.name,
+                employee_in.email,
+                employee_in.status,
+                employee_in.salary,
+                employee_in.department_id,
+                employee_in.manager_id,
+                employee_in.phone,
+                employee_in.role,
+                now,
+                now,
+            )
             cursor.execute(sql, params)
             employee_id = cursor.lastrowid
             cursor.execute("SELECT * FROM employees WHERE id = ?", (employee_id,))
             row = cursor.fetchone()
+    except InvalidEmployeeDataError:
+        raise
     except sqlite3.IntegrityError as exc:
         _handle_integrity_error("create", exc)
     except sqlite3.Error as exc:

@@ -120,6 +120,17 @@ def initialize_employees_schema() -> dict[str, Any]:
 
 
 @mcp.tool()
+def list_departments() -> list[dict[str, Any]]:
+    """List all departments (id and name). Use to map a department name to department_id."""
+    _log_tool_call("list_departments")
+
+    def _action() -> list[dict[str, Any]]:
+        return services.list_departments()
+
+    return _with_init_retry(_action)
+
+
+@mcp.tool()
 def create_employee(
     *,
     name: str,
@@ -127,11 +138,21 @@ def create_employee(
     status: str,
     salary: float,
     department_id: Optional[int] = None,
+    department_name: Optional[str] = None,
     manager_id: Optional[int] = None,
     phone: Optional[str] = None,
     role: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Create an employee and return the created record."""
+    """Create an employee and return the created record.
+
+    ``status`` must be one of: active, inactive, terminated, on_leave. If the user
+    does not specify a status, use ``active``.
+
+    For departments: prefer ``department_name`` when the user gives a name (e.g.
+    Engineering); the server will find or create that department. If you already
+    have a numeric ``department_id`` from list_departments, pass ``department_id``
+    instead (do not pass both).
+    """
     _log_tool_call("create_employee")
 
     def _action() -> dict[str, Any]:
@@ -141,6 +162,7 @@ def create_employee(
             status=status,
             salary=salary,
             department_id=department_id,
+            department_name=department_name,
             manager_id=manager_id,
             phone=phone,
             role=role,
